@@ -1,0 +1,7 @@
+packages: .
+
+source-repository-package
+    type: git
+    location: https://github.com/faulhornlabs/zikkurat-algebra
+    tag: 62133e22813cb0bf40e831896082844fb9c53128
+    subdir: lib
