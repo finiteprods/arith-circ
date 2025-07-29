@@ -2,7 +2,7 @@
 
 module Expr where
 
-import ZK.Algebra.Class.Field (PrimeField)
+import ZK.Algebra.API (PrimeField)
 import GHC.Stack (HasCallStack)
 import Control.Monad.State (State, execState, runState, gets, modify)
 import Control.Monad (join)
@@ -131,10 +131,12 @@ fresh = do
 emit :: Gate Wire f -> ExprM f ()
 emit g = modify . first $ ArithCirc . (g :) . unArithCirc
 
--- | new input / intermediate / output wire
 newIn, newMid, newOut :: ExprM f Wire
+-- | new input wire
 newIn  = Input        <$> fresh
+-- | new intermediate wire
 newMid = Intermediate <$> fresh
+-- | new output wire
 newOut = Output       <$> fresh
 
 -- | "downcast right"
@@ -149,6 +151,13 @@ either2Wire (Right c) = do
   mulOut <- newMid
   emit $ Mul (ConstGate 1) c mulOut
   pure mulOut
+
+-- | downcast to affine circuits and add together
+eitherSum
+  :: Either Wire (AffineCirc Wire f)
+  -> Either Wire (AffineCirc Wire f)
+  -> AffineCirc Wire f
+eitherSum l r = either2Aff l `Add` either2Aff r
 
 -- | emit multiplication gate and return its out-wire
 eitherProd
@@ -173,8 +182,8 @@ compile = \case
   EVarBool v   -> pure $ Left v
   EUnOp op e   -> case op of
     -- | not b := 1 - b
-    UNot -> Right . sub (ConstGate 1) . either2Aff <$> compile e
-    UNeg -> Right . ScalarMul (-1)    . either2Aff <$> compile e
+    UNot -> Right . subFrom1 . either2Aff <$> compile e
+    UNeg -> Right . ScalarMul (-1) . either2Aff <$> compile e
   EBinOp op e1 e2 -> case op of
     BAdd -> liftA2 Add <$> compile e1 <*> compile e2
     BSub -> liftA2 sub <$> compile e1 <*> compile e2
@@ -184,23 +193,23 @@ compile = \case
     BOr  -> do
       wc1 <- compile e1
       wc2 <- compile e2
-      Right . sub (either2Aff wc1 `Add` either2Aff wc2) . Var <$> eitherProd wc1 wc2
+      Right . sub (eitherSum wc1 wc2) . Var <$> eitherProd wc1 wc2
     -- | xor b b' := b + b' - 2 * b * b'
     BXor -> do
       wc1 <- compile e1
       wc2 <- compile e2
-      Right
-        . Add (either2Aff wc1 `Add` either2Aff wc2)
-        . ScalarMul (-2)
-        . Var <$> eitherProd wc1 wc2
+      Right . Add (eitherSum wc1 wc2) . ScalarMul (-2) . Var <$> eitherProd wc1 wc2
   -- | if b x y := b * x + (1 - b) * y
   EIf e1 e2 e3 -> do
     wc1 <- compile e1
     wc2 <- compile e2
     wc3 <- compile e3
-    fmap Right $ Add
-      <$> fmap Var (eitherProd wc1 wc2)
-      <*> fmap Var (eitherProd (sub (ConstGate 1) <$> wc1) wc3)
+    wt  <- eitherProd wc1 wc2
+    we  <- eitherProd (subFrom1 <$> wc1) wc3
+    pure . Right $ Var wt `Add` Var we
+    -- fmap Right $ Add
+    --   <$> fmap Var (eitherProd wc1 wc2)
+    --   <*> fmap Var (eitherProd (sub (ConstGate 1) <$> wc1) wc3)
   --  liftA2 Add . Right . Var
   --    <$> mulEithers wc1 wc2
   --    <*> fmap (Right . Var) (mulEithers (sub (ConstGate 1) <$> wc1) wc3)
@@ -209,4 +218,4 @@ compile = \case
     diff  <- liftA2 sub <$> compile e1 <*> compile e2
     eqOut <- newMid
     emit =<< Equal <$> either2Wire diff <*> newMid <*> pure eqOut
-    pure . Right . sub (ConstGate 1) $ Var eqOut
+    pure . Right . subFrom1 $ Var eqOut

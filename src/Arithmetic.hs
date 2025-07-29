@@ -5,7 +5,7 @@ module Arithmetic where
 import Data.Bits (testBit, Bits (testBit))
 import Data.Foldable (foldl')
 import Affine (AffineCirc(..), collectInputsAffine, evalAffineCirc, mapVarsAffine)
-import ZK.Algebra.Class.Field (PrimeField (asInteger), asInteger)
+import ZK.Algebra.API (PrimeField, asInteger)
 import GHC.Stack (HasCallStack)
 
 -- | wire with int label

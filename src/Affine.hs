@@ -7,7 +7,7 @@ module Affine where
 
 import GHC.Stack (HasCallStack)
 import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 
 -- | Arithmetic circuits without multiplication
 -- i.e. circuits describe affine transformations.
@@ -95,3 +95,7 @@ sub :: Num f
   -> AffineCirc i f
   -> AffineCirc i f
 sub c1 c2 = Add c1 (ScalarMul (-1) c2) -- x - y = x + (-1 * y)
+
+-- | subtract an affine circuit from the unit affine circuit
+subFrom1 :: Num f => AffineCirc i f -> AffineCirc i f
+subFrom1 = sub (ConstGate 1)
