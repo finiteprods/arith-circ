@@ -64,6 +64,7 @@ library
         Affine
         Arithmetic
         Lang
+        Qap
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -77,6 +78,7 @@ library
       , zikkurat-algebra
       , containers
       , mtl
+      , poly
 
     -- Directories containing source files.
     hs-source-dirs:   src
