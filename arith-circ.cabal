@@ -79,6 +79,7 @@ library
       , containers
       , mtl
       , poly
+      , optics-core
 
     -- Directories containing source files.
     hs-source-dirs:   src

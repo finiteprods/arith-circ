@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Lang where
 
 import Expr
@@ -41,8 +42,7 @@ input = newIn
 -- * otherwise emit gate with out-wire the given new wire
 compile2Wire :: Num f => ExprM f Wire -> Expr Wire f f -> ExprM f Wire
 compile2Wire newWire e = do
-  wc <- compile e
-  case wc of
+  compile e >>= \case
     Left w  -> pure w
     Right c -> do
       w <- newWire

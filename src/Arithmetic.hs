@@ -2,7 +2,7 @@
 
 module Arithmetic where
 
-import Data.Bits (testBit, Bits (testBit))
+import Data.Bits (testBit)
 import Data.Foldable (foldl')
 import Affine (AffineCirc(..), collectInputsAffine, evalAffineCirc, mapVarsAffine)
 import ZK.Algebra.API (PrimeField, asInteger)
@@ -119,16 +119,16 @@ validArithCirc (ArithCirc gates) =
               && all (validWire definedWires) (inputWires gate),
             definedWires ++ outWires
           )
-      notInputWire  = \case { Input _ -> False; _notInput -> True }
+      notInputWire  = \case Input _ -> False; _notInput -> True
       validWire dws = \case
         Input _             -> True
         Output _            -> False
         iw@(Intermediate _) -> iw `elem` dws
 
 -- | generate (effectfully) values for a gate... how many?
---   Mul:   1
---   Equal: 2
---   Split: n + 1 where n is the no. out-wires
+-- Mul:   1
+-- Equal: 2
+-- Split: n + 1 where n is the no. out-wires
 genValuesGate :: Applicative m => m f -> Gate i f -> m [f]
 genValuesGate gen = \case
   Mul {}       -> pure <$> gen
@@ -146,11 +146,10 @@ evalArithCirc :: forall f vars. PrimeField f -- TODO check why forall
   -> (Wire -> f -> vars -> vars)
   -- | circuit to evaluate
   -> ArithCirc f
-  -- | environment containing inputs
+  -- | environment containing inputs only
   -> vars
   -- | environment containing inputs, intermediates, outputs
   -> vars
-
 evalArithCirc lkp upd (ArithCirc gs) env =
   foldl' (evalGate lkp upd) env gs
 
@@ -163,6 +162,6 @@ unsplit :: Num f
 unsplit = snd . foldl' addTerm (0 :: Integer, ConstGate 0)
   where
     addTerm (i, circ) bitwire =
-      ( i + 1,
-        circ `Add` ScalarMul (2 ^ i) (Var bitwire)
+      ( i + 1
+      , circ `Add` ScalarMul (2 ^ i) (Var bitwire)
       )
