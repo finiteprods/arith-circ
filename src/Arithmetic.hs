@@ -19,7 +19,7 @@ data Wire
 -- Inp  Intm     Intm  Out
 
 
--- | gate with "ports" of type i and values of type f flowing through it
+-- | gate with "ports" of type *i* and values of type *f* flowing through it
 data Gate i f
   -- | "singleton" arithmetic circuit consisting of a single mult gate
   = Mul
@@ -101,8 +101,8 @@ evalGate lkp upd env = \case
             isSet j fldElt = bool2Val $ testBit (asInteger fldElt) j
             bool2Val b = if b then 1 else 0
 
--- | a (valid) arithmetic circuit consists of a list of gates g
---   where any in-wire of g is either @Input@
+-- | a (valid) arithmetic circuit consists of a list of gates *g*
+--   where any in-wire of *g* is either @Input@
 --   or an @Intermediate@ out-wire of a gate appearing earlier in the list
 newtype ArithCirc f = ArithCirc { unArithCirc :: [Gate Wire f] }
   deriving (Eq, Show)

@@ -16,7 +16,7 @@ data AffineCirc i f
   | ScalarMul f (AffineCirc i f)
   | ConstGate f
   | Var i
-  deriving (Read, Eq, Show)
+  deriving (Read, Eq, Show, Functor)
 
 collectInputsAffine :: AffineCirc i f -> [i]
 collectInputsAffine = \case

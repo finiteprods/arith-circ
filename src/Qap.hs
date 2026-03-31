@@ -8,13 +8,20 @@ import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as M
 import Data.IntMap.Merge.Strict qualified as MM
 import Data.Foldable (fold)
-import Data.Poly (VPoly, scale, quotRemFractional)
-import Arithmetic (ArithCirc, evalArithCirc, Wire(..))
+import Data.Map qualified as Map
+--import Data.Poly (VPoly, scale, quotRemFractional)
+import Arithmetic (ArithCirc, evalArithCirc, Wire(..), Gate(..))
 import ZK.Algebra.API (PrimeField)
+import ZK.Algebra.Pure.Poly (Poly, polyDiv, polyConst)
+import ZK.Algebra.Pure.Field.Class (Field)
 import GHC.Generics (Generic)
 import Optics.Core (over)
+import Data.Functor.Identity (Identity (..))
+import GHC.Stack (HasCallStack)
+import Affine (affineCirc2Map)
 
--- | family of values `a` grouped by constant, inputs, intermediates, outputs.
+-- | family of values `a` indexed by wire labels,
+-- grouped by constant, inputs, intermediates, outputs.
 data Family a = Family
   { famConst :: a
   , famIns  :: IntMap a
@@ -26,10 +33,10 @@ data Family a = Family
 -- consisting of 3 families (L, R, O) of polynomials
 -- and a vanishing polynomial V
 data Qap f = Qap
-  { qapInsL :: Family (VPoly f)
-  , qapInsR :: Family (VPoly f)
-  , qapOuts :: Family (VPoly f)
-  , qapVanish :: VPoly f
+  { qapInsL :: Family (Poly f)
+  , qapInsR :: Family (Poly f)
+  , qapOuts :: Family (Poly f)
+  , qapVanish :: Poly f
   } deriving (Show, Eq)
 
 -- | like `Qap` but `Poly` generalised to an arbitrary functor `p`
@@ -107,29 +114,29 @@ intersectionWith f xs ys = Family
 -- i.e. the polynomial LR - O vanishes for all mult gates specified by V
 -- more precisely, LR - O = QV for some quotient polynomial Q
 -- in which case, Q (witnessing divisibility by V) is returned
-witness :: (Eq f, Fractional f)
+witness :: (Eq f, Field f)
   => Qap f    -- ^ circuit in QAP form
   -> Family f -- ^ assignment of input, output and intermediate values
-  -> Maybe (VPoly f)
+  -> Maybe (Poly f)
 witness = witnessZk 0 0 0
 
 -- | `witness` in zero knowledge
-witnessZk :: (Eq f, Fractional f)
+witnessZk :: (Eq f, Field f)
   => f -- ^ randomness to L
   -> f -- ^ randomness to R
   -> f -- ^ randomness to O
   -> Qap f
   -> Family f
-  -> Maybe (VPoly f)
-witnessZk d1 d2 d3 Qap {..} trace =
+  -> Maybe (Poly f)
+witnessZk d1 d2 d3 Qap{..} trace =
   if r == 0 then Just q else Nothing
   where
-    (q, r) = quotRemFractional masterPoly qapVanish
+    (q, r) = masterPoly `polyDiv` qapVanish
     masterPoly = inlPoly * inrPoly - outPoly
-    inlPoly = sumPolys (scaleByTrace qapInsL) + scale 0 d1 qapVanish
-    inrPoly = sumPolys (scaleByTrace qapInsR) + scale 0 d2 qapVanish
-    outPoly = sumPolys (scaleByTrace qapOuts) + scale 0 d3 qapVanish
-    scaleByTrace = intersectionWith (scale 0) trace
+    inlPoly = sumPolys (scaleByTrace qapInsL) + qapVanish * polyConst d1
+    inrPoly = sumPolys (scaleByTrace qapInsR) + qapVanish * polyConst d2
+    outPoly = sumPolys (scaleByTrace qapOuts) + qapVanish * polyConst d3
+    scaleByTrace = intersectionWith ((*) . polyConst) trace
     sumPolys = foldFamily (+)
 
 -- | generate a valid assignment of variables (aka trace) for the given circuit
@@ -141,7 +148,7 @@ assignment circ = evalArithCirc (flip lookupWire) updateWire circ . insFamily
 
 -- | lookup value of wire in given family
 lookupWire :: Family a -> Wire -> Maybe a
-lookupWire Family {..} = \case
+lookupWire Family{..} = \case
   Input lbl        -> M.lookup lbl famIns
   Intermediate lbl -> M.lookup lbl famMids
   Output lbl       -> M.lookup lbl famOuts
@@ -152,3 +159,17 @@ updateWire = \case
   Input lbl        -> over #famIns  . M.insert lbl
   Intermediate lbl -> over #famMids . M.insert lbl
   Output lbl       -> over #famOuts . M.insert lbl
+
+-- | convert gate into a "mini-QAP"
+gate2GenQap :: (Field f, HasCallStack) => Gate Wire f -> GenQap Identity f
+gate2GenQap Mul{..} = GenQap
+  { genQapInsL = Map.foldrWithKey updateWire (constFamily constL) mapL
+  , genQapInsR = Map.foldrWithKey updateWire (constFamily constR) mapR
+  , genQapOuts = updateWire mulO 1 (constFamily 0)
+  , genQapVanish = 0
+  } where
+    (constL, mapL) = affineCirc2Map $ Identity <$> mulL
+    (constR, mapR) = affineCirc2Map $ Identity <$> mulR
+
+gate2GenQap _ = error "not yet implemented for non-multiplication gates"
+
