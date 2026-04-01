@@ -4,9 +4,11 @@ module Arithmetic where
 
 import Data.Bits (testBit)
 import Data.Foldable (foldl')
-import Affine (AffineCirc(..), collectInputsAffine, evalAffineCirc, mapVarsAffine)
+import Affine (AffineCirc(..), collectInputsAffine, evalAffineCirc)
 import ZK.Algebra.API (PrimeField, asInteger)
 import GHC.Stack (HasCallStack)
+import GHC.Generics (Generic)
+import Generic.Functor.Multimap (gsolomap)
 
 -- | wire with int label
 data Wire
@@ -36,7 +38,7 @@ data Gate i f
       { splitIn   :: i
       , splitOuts :: [i]
       }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 -- is this used? see @inputWires@
 collectInputsGate :: Gate i f -> [i]
@@ -59,11 +61,8 @@ outputWires = \case
   Split _ outs  -> outs
 
 -- | rename variables (ideally f is injective)
-mapVarsGate :: (i -> j) -> Gate i f -> Gate j f
-mapVarsGate f = \case
-  Mul l r o   -> Mul (mapVarsAffine f l) (mapVarsAffine f r) (f o)
-  Equal i m o -> Equal (f i) (f m) (f o)
-  Split i os  -> Split (f i) (map f os)
+mapVarGate :: (i -> j) -> Gate i f -> Gate j f
+mapVarGate = gsolomap
 
 -- | evaluate an arithmetic gate
 evalGate :: (PrimeField f, HasCallStack)

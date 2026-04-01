@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, StrictData #-}
+{-# LANGUAGE LambdaCase, StrictData, DerivingVia #-}
 
 --  | Definition of arithmetic circuits that only contain addition, scalar
 --  multiplication and constant gates along with its direct evaluation and
@@ -8,6 +8,9 @@ module Affine where
 import GHC.Stack (HasCallStack)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Bifunctor (Bifunctor)
+import GHC.Generics (Generic)
+import Generic.Functor (GenericBifunctor(..))
 
 -- | Arithmetic circuits without multiplication
 -- i.e. circuits describe affine transformations.
@@ -16,7 +19,8 @@ data AffineCirc i f
   | ScalarMul f (AffineCirc i f)
   | ConstGate f
   | Var i
-  deriving (Read, Eq, Show, Functor)
+  deriving stock (Read, Eq, Show, Functor, Generic)
+  deriving Bifunctor via (GenericBifunctor AffineCirc)
 
 collectInputsAffine :: AffineCirc i f -> [i]
 collectInputsAffine = \case
@@ -24,14 +28,6 @@ collectInputsAffine = \case
   ScalarMul _ c -> collectInputsAffine c
   ConstGate _   -> []
   Var x         -> [x]
-
--- | Rename variables.
-mapVarsAffine :: (i -> j) -> AffineCirc i f -> AffineCirc j f
-mapVarsAffine f = \case
-  Add c1 c2     -> Add (mapVarsAffine f c1) (mapVarsAffine f c2)
-  ScalarMul s c -> ScalarMul s (mapVarsAffine f c)
-  ConstGate k   -> ConstGate k
-  Var x         -> Var (f x)
 
 -- | Evaluate affine circuit on the given environment.
 evalAffineCirc :: (Num f, HasCallStack)
