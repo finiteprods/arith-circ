@@ -42,9 +42,11 @@ data Expr i f t where
   -- | Equality of two subexpressions
   EEq        :: Expr i f f -> Expr i f f -> Expr i f Bool
 
+-- standalone derivings needed for GADTs
+-- https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/standalone_deriving.html
 deriving instance (Show i, Show f) => Show (Expr i f t)
-deriving instance (Show f)         => Show (BinOp f a)
-deriving instance (Show f)         => Show (UnOp f a)
+deriving instance Show f           => Show (BinOp f a)
+deriving instance Show f           => Show (UnOp f a)
 
 -- | Evaluate arithmetic expressions given an environment
 evalExpr :: (PrimeField f, HasCallStack)

@@ -30,8 +30,8 @@ data Family a = Family
   } deriving (Show, Eq, Functor, Foldable, Generic)
 
 -- | quadratic arithmetic program over field `f`
--- consisting of 3 families (L, R, O) of polynomials
--- and a vanishing polynomial V
+-- consisting of 3 families (*L*, *R*, *O*) of polynomials
+-- and a vanishing polynomial *V*
 data Qap f = Qap
   { qapInsL :: Family (Poly f)
   , qapInsR :: Family (Poly f)
@@ -39,7 +39,7 @@ data Qap f = Qap
   , qapVanish :: Poly f
   } deriving (Show, Eq)
 
--- | like `Qap` but `Poly` generalised to an arbitrary functor `p`
+-- | like `Qap` but with `Poly` generalised to an arbitrary functor `p`
 data GenQap p f = GenQap
   { genQapInsL :: Family (p f)
   , genQapInsR :: Family (p f)
@@ -94,7 +94,27 @@ mergeFamilies f x0 y0 xs ys = Family
     onMissingKey1 = MM.mapMissing $ \_ y -> f x0 y
     onMatchKey    = MM.zipWithMatched $ \_ x y -> f x y
 
--- | `intersectionWith` on maps lifted to `Family`s
+-- | @mergeFamilies' f y0 xs ys@ merges `xs` and `ys` with a given function `f` on values
+-- s.t. `(k, x)` merged with `(k, y)` is `(k, f x y)`
+-- but if `k` isn't a key in `ys` then it's `(k, f x y0)`
+-- and if `k` isn't a key in `xs` then it's `(k, y)`
+mergeFamilies'
+  :: (a -> b -> b)
+  -> b
+  -> Family a
+  -> Family b
+  -> Family b
+mergeFamilies' f y0 xs ys = Family
+  { famConst = f xs.famConst ys.famConst
+  , famIns   = mergeMaps xs.famIns ys.famIns
+  , famMids  = mergeMaps xs.famMids ys.famMids
+  , famOuts  = mergeMaps xs.famOuts ys.famOuts
+  } where
+    mergeMaps = MM.merge onMissingKey2 MM.preserveMissing onMatchKey
+    onMissingKey2 = MM.mapMissing     $ \_ x -> f x y0
+    onMatchKey    = MM.zipWithMatched $ \_ x y -> f x y
+
+-- | `intersectionWith` on `Map`s lifted to `Family`s
 intersectionWith
   :: (a -> b -> c)
   -> Family a
@@ -109,11 +129,15 @@ intersectionWith f xs ys = Family
   where
     intersection = M.intersectionWith f
 
--- | witness the given assignment c of variables as valid for the given QAP
--- i.e. "plugging" c into the QAP satisfies "inL * inR = out" for all all mult gates
--- i.e. the polynomial LR - O vanishes for all mult gates specified by V
--- more precisely, LR - O = QV for some quotient polynomial Q
--- in which case, Q (witnessing divisibility by V) is returned
+-- | transposes a list of families into a family of lists
+sequenceFamily :: [Family a] -> Family [a]
+sequenceFamily = foldr (mergeFamilies' (:) []) (constFamily [])
+
+-- | witness the given assignment *c* of variables as valid for the given QAP
+-- i.e. "plugging" *c* into the QAP satisfies "inL * inR = out" for all mult gates
+-- i.e. the polynomial *LR - O* vanishes for all mult gates specified by *V*
+-- more precisely, *LR - O = QV* for some quotient polynomial *Q*
+-- in which case, *Q* (witnessing divisibility by *V*) is returned
 witness :: (Eq f, Field f)
   => Qap f    -- ^ circuit in QAP form
   -> Family f -- ^ assignment of input, output and intermediate values
@@ -122,9 +146,9 @@ witness = witnessZk 0 0 0
 
 -- | `witness` in zero knowledge
 witnessZk :: (Eq f, Field f)
-  => f -- ^ randomness to L
-  -> f -- ^ randomness to R
-  -> f -- ^ randomness to O
+  => f -- ^ randomness to *L*
+  -> f -- ^ randomness to *R*
+  -> f -- ^ randomness to *O*
   -> Qap f
   -> Family f
   -> Maybe (Poly f)
@@ -159,6 +183,7 @@ updateWire = \case
   Input lbl        -> over #famIns  . M.insert lbl
   Intermediate lbl -> over #famMids . M.insert lbl
   Output lbl       -> over #famOuts . M.insert lbl
+--  \v fam -> over #famOuts (M.insert lbl v) fam
 
 -- | convert gate into a "mini-QAP"
 gate2GenQap :: (Field f, HasCallStack) => Gate Wire f -> GenQap Identity f
@@ -173,3 +198,11 @@ gate2GenQap Mul{..} = GenQap
 
 gate2GenQap _ = error "not yet implemented for non-multiplication gates"
 
+-- | transpose a list of "point-based QAPs" into a single list-based one
+sequenceGenQap :: [GenQap Identity f] -> GenQap [] f
+sequenceGenQap gqaps = GenQap
+  { genQapInsL = sequenceFamily $ map (\gqap -> runIdentity <$> gqap.genQapInsL) gqaps
+  , genQapInsR = sequenceFamily $ map (\gqap -> runIdentity <$> gqap.genQapInsR) gqaps
+  , genQapOuts = sequenceFamily $ map (\gqap -> runIdentity <$> gqap.genQapOuts) gqaps
+  , genQapVanish = map (\gqap -> runIdentity gqap.genQapVanish) gqaps
+  }
