@@ -9,10 +9,12 @@ import Data.IntMap.Strict qualified as M
 import Data.IntMap.Merge.Strict qualified as MM
 import Data.Foldable (fold)
 import Data.Map qualified as Map
-import Arithmetic (ArithCirc, evalArithCirc, Wire(..), Gate(..))
-import ZK.Algebra.API (PrimeField)
-import ZK.Algebra.Pure.Poly (Poly, polyDiv, polyConst)
-import ZK.Algebra.Pure.Field.Class (Field)
+import Data.Array qualified as A
+import Arithmetic (ArithCirc (unArithCirc), evalArithCirc, Wire(..), Gate(..))
+import ZK.Algebra.API (PrimeField, ceilingLog2_, fromLog2, exp2_, Log2)
+import ZK.Algebra.Pure.Poly (Poly, polyDiv, polyConst, vanishingPoly)
+import ZK.Algebra.Pure.Field.Class (Field, FFTField, domainSubgroup)
+import ZK.Algebra.Pure.NTT (intt)
 import GHC.Generics (Generic)
 import Optics.Core (over)
 import Data.Functor ((<&>))
@@ -207,3 +209,27 @@ sequenceGenQap gqaps = GenQap
   , outs = sequenceFamily $ fmap runIdentity . (.outs) <$> gqaps
   , vanish = runIdentity . (.vanish) <$> gqaps
   }
+
+-- | interpolate (via iNTT) points-based QAP into a polynomials-based QAP
+interpolatePolys :: FFTField f => GenQap [] f -> Qap f
+interpolatePolys GenQap{..} = Qap
+  { insL = interpolate . toArray . padToPowOf2 <$> insL
+  , insR = interpolate . toArray . padToPowOf2 <$> insR
+  , outs = interpolate . toArray . padToPowOf2 <$> outs
+  , vanish =
+      vanishingPoly $ domainSubgroup $ fromLog2 $ ceilingLog2_ $ length vanish
+  } where
+    interpolate (array, pow) = intt (domainSubgroup pow) array
+    toArray (ys, log2) = (A.listArray (0, exp2_ log2 - 1) ys, fromLog2 log2)
+
+-- | pad list with zeros until length is a power of two
+padToPowOf2 :: Num f => [f] -> ([f], Log2)
+padToPowOf2 ys = (ys ++ replicate padLen 0, nextPow)
+  where
+    len = length ys
+    nextPow = ceilingLog2_ len
+    padLen = exp2_ nextPow - len
+
+-- | convert arithmetic circuit to QAP
+arithCirc2Qap ::FFTField f => ArithCirc f -> Qap f
+arithCirc2Qap = interpolatePolys . sequenceGenQap . map gate2GenQap . unArithCirc

@@ -82,6 +82,7 @@ library
       , poly
       , optics-core
       , generic-functor
+      , array
 
     -- Directories containing source files.
     hs-source-dirs:   src
