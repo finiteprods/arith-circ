@@ -1,6 +1,6 @@
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE RecordWildCards, NoFieldSelectors, OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards, DuplicateRecordFields, NoFieldSelectors #-}
+{-# LANGUAGE OverloadedRecordDot, OverloadedLabels #-}
 {-# LANGUAGE LambdaCase #-}
 module Qap where
 
@@ -9,42 +9,43 @@ import Data.IntMap.Strict qualified as M
 import Data.IntMap.Merge.Strict qualified as MM
 import Data.Foldable (fold)
 import Data.Map qualified as Map
---import Data.Poly (VPoly, scale, quotRemFractional)
 import Arithmetic (ArithCirc, evalArithCirc, Wire(..), Gate(..))
 import ZK.Algebra.API (PrimeField)
 import ZK.Algebra.Pure.Poly (Poly, polyDiv, polyConst)
 import ZK.Algebra.Pure.Field.Class (Field)
 import GHC.Generics (Generic)
 import Optics.Core (over)
+import Data.Functor ((<&>))
 import Data.Functor.Identity (Identity (..))
 import GHC.Stack (HasCallStack)
 import Affine (affineCirc2Map)
+import Prelude hiding (const)
 
--- | family of values `a` indexed by wire labels,
--- grouped by constant, inputs, intermediates, outputs.
+-- | family of values in `a` consisting of a "constant"
+-- and values "inputs", "intermediates", "outputs" indexed by integers
 data Family a = Family
-  { famConst :: a
-  , famIns  :: IntMap a
-  , famMids :: IntMap a
-  , famOuts :: IntMap a
+  { const :: a
+  , ins   :: IntMap a
+  , mids  :: IntMap a
+  , outs  :: IntMap a
   } deriving (Show, Eq, Functor, Foldable, Generic)
 
 -- | quadratic arithmetic program over field `f`
 -- consisting of 3 families (*L*, *R*, *O*) of polynomials
 -- and a vanishing polynomial *V*
 data Qap f = Qap
-  { qapInsL :: Family (Poly f)
-  , qapInsR :: Family (Poly f)
-  , qapOuts :: Family (Poly f)
-  , qapVanish :: Poly f
+  { insL   :: Family (Poly f)
+  , insR   :: Family (Poly f)
+  , outs   :: Family (Poly f)
+  , vanish :: Poly f
   } deriving (Show, Eq)
 
 -- | like `Qap` but with `Poly` generalised to an arbitrary functor `p`
 data GenQap p f = GenQap
-  { genQapInsL :: Family (p f)
-  , genQapInsR :: Family (p f)
-  , genQapOuts :: Family (p f)
-  , genQapVanish :: p f
+  { insL   :: Family (p f)
+  , insR   :: Family (p f)
+  , outs   :: Family (p f)
+  , vanish :: p f
   } deriving (Show, Eq, Functor)
 
 -- | create `Family` with given constant
@@ -83,10 +84,10 @@ mergeFamilies
   -> Family b -- ^ second family
   -> Family c
 mergeFamilies f x0 y0 xs ys = Family
-  { famConst = f xs.famConst ys.famConst
-  , famIns  = mergeMaps xs.famIns  ys.famIns
-  , famMids = mergeMaps xs.famMids ys.famMids
-  , famOuts = mergeMaps xs.famOuts ys.famOuts
+  { const = f xs.const ys.const
+  , ins  = mergeMaps xs.ins  ys.ins
+  , mids = mergeMaps xs.mids ys.mids
+  , outs = mergeMaps xs.outs ys.outs
   }
   where
     mergeMaps = MM.merge onMissingKey2 onMissingKey1 onMatchKey
@@ -105,13 +106,13 @@ mergeFamilies'
   -> Family b
   -> Family b
 mergeFamilies' f y0 xs ys = Family
-  { famConst = f xs.famConst ys.famConst
-  , famIns   = mergeMaps xs.famIns ys.famIns
-  , famMids  = mergeMaps xs.famMids ys.famMids
-  , famOuts  = mergeMaps xs.famOuts ys.famOuts
+  { const = f xs.const ys.const
+  , ins   = mergeMaps xs.ins  ys.ins
+  , mids  = mergeMaps xs.mids ys.mids
+  , outs  = mergeMaps xs.outs ys.outs
   } where
     mergeMaps = MM.merge onMissingKey2 MM.preserveMissing onMatchKey
-    onMissingKey2 = MM.mapMissing     $ \_ x -> f x y0
+    onMissingKey2 = MM.mapMissing     $ \_ x   -> f x y0
     onMatchKey    = MM.zipWithMatched $ \_ x y -> f x y
 
 -- | `intersectionWith` on `Map`s lifted to `Family`s
@@ -121,10 +122,10 @@ intersectionWith
   -> Family b
   -> Family c
 intersectionWith f xs ys = Family
-  { famConst = f xs.famConst ys.famConst
-  , famIns  = intersection xs.famIns  ys.famIns
-  , famMids = intersection xs.famMids ys.famMids
-  , famOuts = intersection xs.famOuts ys.famOuts
+  { const = f xs.const ys.const
+  , ins  = intersection xs.ins  ys.ins
+  , mids = intersection xs.mids ys.mids
+  , outs = intersection xs.outs ys.outs
   }
   where
     intersection = M.intersectionWith f
@@ -155,11 +156,11 @@ witnessZk :: (Eq f, Field f)
 witnessZk d1 d2 d3 Qap{..} trace =
   if r == 0 then Just q else Nothing
   where
-    (q, r) = masterPoly `polyDiv` qapVanish
+    (q, r) = masterPoly `polyDiv` vanish
     masterPoly = inlPoly * inrPoly - outPoly
-    inlPoly = sumPolys (scaleByTrace qapInsL) + qapVanish * polyConst d1
-    inrPoly = sumPolys (scaleByTrace qapInsR) + qapVanish * polyConst d2
-    outPoly = sumPolys (scaleByTrace qapOuts) + qapVanish * polyConst d3
+    inlPoly = sumPolys (scaleByTrace insL) + vanish * polyConst d1
+    inrPoly = sumPolys (scaleByTrace insR) + vanish * polyConst d2
+    outPoly = sumPolys (scaleByTrace outs) + vanish * polyConst d3
     scaleByTrace = intersectionWith ((*) . polyConst) trace
     sumPolys = foldFamily (+)
 
@@ -173,36 +174,36 @@ assignment circ = evalArithCirc (flip lookupWire) updateWire circ . insFamily
 -- | lookup value of wire in given family
 lookupWire :: Family a -> Wire -> Maybe a
 lookupWire Family{..} = \case
-  Input lbl        -> M.lookup lbl famIns
-  Intermediate lbl -> M.lookup lbl famMids
-  Output lbl       -> M.lookup lbl famOuts
+  Input lbl        -> M.lookup lbl ins
+  Intermediate lbl -> M.lookup lbl mids
+  Output lbl       -> M.lookup lbl outs
 
 -- | update value of wire in given family
 updateWire :: Wire -> a -> Family a -> Family a
 updateWire = \case
-  Input lbl        -> over #famIns  . M.insert lbl
-  Intermediate lbl -> over #famMids . M.insert lbl
-  Output lbl       -> over #famOuts . M.insert lbl
---  \v fam -> over #famOuts (M.insert lbl v) fam
+  Input lbl        -> over #ins  . M.insert lbl
+  Intermediate lbl -> over #mids . M.insert lbl
+  Output lbl       -> over #outs . M.insert lbl
+--  \v fam -> over #outs (M.insert lbl v) fam
 
 -- | convert gate into a "mini-QAP"
 gate2GenQap :: (Field f, HasCallStack) => Gate Wire f -> GenQap Identity f
 gate2GenQap Mul{..} = GenQap
-  { genQapInsL = Map.foldrWithKey updateWire (constFamily constL) mapL
-  , genQapInsR = Map.foldrWithKey updateWire (constFamily constR) mapR
-  , genQapOuts = updateWire mulO 1 (constFamily 0)
-  , genQapVanish = 0
+  { insL = Map.foldrWithKey updateWire (constFamily constL) mapL <&> Identity
+  , insR = Map.foldrWithKey updateWire (constFamily constR) mapR <&> Identity
+  , outs = updateWire mulO 1 (constFamily 0)
+  , vanish = 0
   } where
-    (constL, mapL) = affineCirc2Map $ Identity <$> mulL
-    (constR, mapR) = affineCirc2Map $ Identity <$> mulR
+    (constL, mapL) = affineCirc2Map mulL
+    (constR, mapR) = affineCirc2Map mulR
 
 gate2GenQap _ = error "not yet implemented for non-multiplication gates"
 
 -- | transpose a list of "point-based QAPs" into a single list-based one
 sequenceGenQap :: [GenQap Identity f] -> GenQap [] f
 sequenceGenQap gqaps = GenQap
-  { genQapInsL = sequenceFamily $ map (\gqap -> runIdentity <$> gqap.genQapInsL) gqaps
-  , genQapInsR = sequenceFamily $ map (\gqap -> runIdentity <$> gqap.genQapInsR) gqaps
-  , genQapOuts = sequenceFamily $ map (\gqap -> runIdentity <$> gqap.genQapOuts) gqaps
-  , genQapVanish = map (\gqap -> runIdentity gqap.genQapVanish) gqaps
+  { insL = sequenceFamily $ fmap runIdentity . (.insL) <$> gqaps
+  , insR = sequenceFamily $ fmap runIdentity . (.insR) <$> gqaps
+  , outs = sequenceFamily $ fmap runIdentity . (.outs) <$> gqaps
+  , vanish = runIdentity . (.vanish) <$> gqaps
   }
