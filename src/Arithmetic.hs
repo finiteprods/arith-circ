@@ -5,7 +5,7 @@ module Arithmetic where
 import Data.Bits (testBit)
 import Data.Foldable (foldl')
 import Affine (AffineCirc(..), collectInputsAffine, evalAffineCirc)
-import ZK.Algebra.API (PrimeField, asInteger)
+import ZK.Algebra.Pure.Field.Class (PrimeField (asInteger))
 import GHC.Stack (HasCallStack)
 import GHC.Generics (Generic)
 import Generic.Functor.Multimap (gsolomap)

@@ -11,9 +11,9 @@ import Data.Foldable (fold)
 import Data.Map qualified as Map
 import Data.Array qualified as A
 import Arithmetic (ArithCirc (unArithCirc), evalArithCirc, Wire(..), Gate(..))
-import ZK.Algebra.API (PrimeField, ceilingLog2_, fromLog2, exp2_, Log2)
+import ZK.Algebra.API (ceilingLog2_, fromLog2, exp2_, Log2)
 import ZK.Algebra.Pure.Poly (Poly, polyDiv, polyConst, vanishingPoly)
-import ZK.Algebra.Pure.Field.Class (Field, FFTField, domainSubgroup)
+import ZK.Algebra.Pure.Field.Class (Field, PrimeField, FFTField, domainSubgroup)
 import ZK.Algebra.Pure.NTT (intt)
 import GHC.Generics (Generic)
 import Optics.Core (over)
