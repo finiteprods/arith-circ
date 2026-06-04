@@ -105,8 +105,10 @@ executable arith-circ
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.18.3.0,
-        arith-circ
+        base ^>=4.18.3.0
+      , arith-circ
+      , containers
+      , zikkurat-algebra-pure
 
     -- Directories containing source files.
     hs-source-dirs:   app
