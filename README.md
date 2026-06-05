@@ -58,3 +58,6 @@ witnessPoly =
     Nothing -> putStrLn "invalid trace"
     Just w  -> print w
 ```
+## Links
+
+See also Adjoint's [arithmetic circuits](https://github.com/sdiehl/arithmetic-circuits).
