@@ -1,6 +1,6 @@
 # Arith(metic)-Circ(uit)
 
-**Arith-Circ** is an embedded domain-specific language for building *arithmetic circuits*, a low-level universal model of computation. Given such a circuit, its execution on some given inputs can be verified very efficiently (in particular, much more efficiently than simply re-executing the circuit) with a cryptographic proof system such as [Groth16](https://eprint.iacr.org/2016/260).
+**Arith-Circ** is an embedded domain-specific language for building *arithmetic circuits*, a low-level universal model of computation. Given such a circuit, its execution on some given inputs can be provably verified very efficiently (in particular, much more efficiently than simply re-executing the circuit) with a cryptographic proof system such as [Groth16](https://eprint.iacr.org/2016/260).
 
 ```haskell
 circ :: ArithCirc Fr

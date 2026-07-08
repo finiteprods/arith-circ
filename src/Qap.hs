@@ -133,8 +133,8 @@ intersectionWith f xs ys = Family
     intersection = M.intersectionWith f
 
 -- | transposes a list of families into a family of lists
-sequenceFamily :: [Family a] -> Family [a]
-sequenceFamily = foldr (mergeFamilies' (:) []) (constFamily [])
+sequenceFamily :: Num a => [Family a] -> Family [a]
+sequenceFamily = foldr (mergeFamilies (:) 0 []) (constFamily [])
 
 -- | witness the given assignment *c* of variables as valid for the given QAP
 -- i.e. "plugging" *c* into the QAP satisfies "inL * inR = out" for all mult gates
@@ -202,7 +202,7 @@ gate2GenQap Mul{..} = GenQap
 gate2GenQap _ = error "not yet implemented for non-multiplication gates"
 
 -- | transpose a list of "point-based QAPs" into a single list-based one
-sequenceGenQap :: [GenQap Identity f] -> GenQap [] f
+sequenceGenQap :: Num f => [GenQap Identity f] -> GenQap [] f
 sequenceGenQap gqaps = GenQap
   { insL = sequenceFamily $ fmap runIdentity . (.insL) <$> gqaps
   , insR = sequenceFamily $ fmap runIdentity . (.insR) <$> gqaps
@@ -210,17 +210,18 @@ sequenceGenQap gqaps = GenQap
   , vanish = runIdentity . (.vanish) <$> gqaps
   }
 
--- | interpolate (via iNTT) points-based QAP into a polynomials-based QAP
+-- | interpolate (via FFT, specifically iNTT) points-based QAP into a polynomials-based QAP
 interpolatePolys :: FFTField f => GenQap [] f -> Qap f
 interpolatePolys GenQap{..} = Qap
-  { insL = interpolate . toArray . padToPowOf2 <$> insL
-  , insR = interpolate . toArray . padToPowOf2 <$> insR
-  , outs = interpolate . toArray . padToPowOf2 <$> outs
-  , vanish =
-      vanishingPoly $ domainSubgroup $ fromLog2 $ ceilingLog2_ $ length vanish
+  { insL = interpolate . toArray . pad0s <$> insL
+  , insR = interpolate . toArray . pad0s <$> insR
+  , outs = interpolate . toArray . pad0s <$> outs
+  , vanish = vanishingPoly . domainSubgroup $ fromLog2 nextPowOf2
   } where
-    interpolate (array, pow) = intt (domainSubgroup pow) array
-    toArray (ys, log2) = (A.listArray (0, exp2_ log2 - 1) ys, fromLog2 log2)
+    nextPowOf2 = ceilingLog2_ (length vanish)
+    pad0s ys = ys ++ replicate (exp2_ nextPowOf2 - length ys) 0
+    toArray = A.listArray (0, exp2_ nextPowOf2 - 1)
+    interpolate = intt . domainSubgroup $ fromLog2 nextPowOf2
 
 -- | pad list with zeros until length is a power of two
 padToPowOf2 :: Num f => [f] -> ([f], Log2)
@@ -232,4 +233,7 @@ padToPowOf2 ys = (ys ++ replicate padLen 0, nextPow)
 
 -- | convert arithmetic circuit to QAP
 arithCirc2Qap ::FFTField f => ArithCirc f -> Qap f
-arithCirc2Qap = interpolatePolys . sequenceGenQap . map gate2GenQap . unArithCirc
+arithCirc2Qap = interpolatePolys . arithCirc2GenQap
+
+arithCirc2GenQap :: Field f => ArithCirc f -> GenQap [] f
+arithCirc2GenQap = sequenceGenQap . map gate2GenQap . unArithCirc
