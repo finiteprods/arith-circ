@@ -4,7 +4,7 @@ module Main where
 import Affine
 import Arithmetic
 import Expr
-import Lang (mul, var, input, compile2Out)
+import Lang (mul, var, input, compile2Out, k, add)
 import Qap
 import Data.IntMap.Strict qualified as M
 import ZK.Algebra.Pure.Instances.BN254 (Fr)
@@ -63,3 +63,12 @@ traceYupeng :: Family Fr
 traceYupeng = assignment circYupeng ins
   where
     ins = M.fromList $ zip [1..] [3, 2, 1, 7, 5, 4]
+
+tenAddProdTimesProd :: ArithCirc Fr
+tenAddProdTimesProd = execCircBuilder $ do
+  w <- var <$> input; x <- var <$> input
+  y <- var <$> input; z <- var <$> input
+  let wx = w `mul` x
+  let yz = y `mul` z
+  let out = (k 10 `add` wx) `mul` yz
+  compile2Out out
