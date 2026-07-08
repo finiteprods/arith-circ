@@ -12,8 +12,8 @@ import Data.Map qualified as Map
 import Data.Array qualified as A
 import Arithmetic (ArithCirc (unArithCirc), evalArithCirc, Wire(..), Gate(..))
 import ZK.Algebra.API (ceilingLog2_, fromLog2, exp2_, Log2)
-import ZK.Algebra.Pure.Poly (Poly, polyDiv, polyConst, vanishingPoly)
-import ZK.Algebra.Pure.Field.Class (Field, PrimeField, FFTField, domainSubgroup)
+import ZK.Algebra.Pure.Poly (Poly, polyConst, vanishingPoly, divideByVanishingPoly)
+import ZK.Algebra.Pure.Field.Class (Field, PrimeField, FFTField, domainSubgroup, MulSubgroup)
 import ZK.Algebra.Pure.NTT (intt)
 import GHC.Generics (Generic)
 import Optics.Core (over)
@@ -34,15 +34,15 @@ data Family a = Family
 
 -- | quadratic arithmetic program over field `f`
 -- consisting of 3 families (*L*, *R*, *O*) of polynomials
--- and a vanishing polynomial *V*
+-- and a domain subgroup determining a vanishing polynomial *V*
 data Qap f = Qap
   { insL   :: Family (Poly f)
   , insR   :: Family (Poly f)
   , outs   :: Family (Poly f)
-  , vanish :: Poly f
+  , domain :: MulSubgroup f
   } deriving (Show, Eq)
 
--- | like `Qap` but with `Poly` generalised to an arbitrary functor `p`
+-- | somewhat like `Qap` but with `Poly` generalised to an arbitrary functor `p`
 data GenQap p f = GenQap
   { insL   :: Family (p f)
   , insR   :: Family (p f)
@@ -141,14 +141,14 @@ sequenceFamily = foldr (mergeFamilies (:) 0 []) (constFamily [])
 -- i.e. the polynomial *LR - O* vanishes for all mult gates specified by *V*
 -- more precisely, *LR - O = QV* for some quotient polynomial *Q*
 -- in which case, *Q* (witnessing divisibility by *V*) is returned
-witness :: (Eq f, Field f)
+witness :: Field f
   => Qap f    -- ^ circuit in QAP form
   -> Family f -- ^ assignment of input, output and intermediate values
   -> Maybe (Poly f)
 witness = witnessZk 0 0 0
 
 -- | `witness` in zero knowledge
-witnessZk :: (Eq f, Field f)
+witnessZk :: Field f
   => f -- ^ randomness to *L*
   -> f -- ^ randomness to *R*
   -> f -- ^ randomness to *O*
@@ -158,13 +158,14 @@ witnessZk :: (Eq f, Field f)
 witnessZk d1 d2 d3 Qap{..} trace =
   if r == 0 then Just q else Nothing
   where
-    (q, r) = masterPoly `polyDiv` vanish
+    (q, r) = divideByVanishingPoly domain masterPoly
     masterPoly = inlPoly * inrPoly - outPoly
-    inlPoly = sumPolys (scaleByTrace insL) + vanish * polyConst d1
-    inrPoly = sumPolys (scaleByTrace insR) + vanish * polyConst d2
-    outPoly = sumPolys (scaleByTrace outs) + vanish * polyConst d3
-    scaleByTrace = intersectionWith ((*) . polyConst) trace
+    inlPoly = sumPolys (scaleBy trace insL) + vanish * polyConst d1
+    inrPoly = sumPolys (scaleBy trace insR) + vanish * polyConst d2
+    outPoly = sumPolys (scaleBy trace outs) + vanish * polyConst d3
+    scaleBy = intersectionWith ((*) . polyConst)
     sumPolys = foldFamily (+)
+    vanish = vanishingPoly domain
 
 -- | generate a valid assignment of variables (aka trace) for the given circuit
 assignment :: PrimeField f
@@ -216,7 +217,7 @@ interpolatePolys GenQap{..} = Qap
   { insL = interpolate . toArray . pad0s <$> insL
   , insR = interpolate . toArray . pad0s <$> insR
   , outs = interpolate . toArray . pad0s <$> outs
-  , vanish = vanishingPoly . domainSubgroup $ fromLog2 nextPowOf2
+  , domain = domainSubgroup (fromLog2 nextPowOf2)
   } where
     nextPowOf2 = ceilingLog2_ (length vanish)
     pad0s ys = ys ++ replicate (exp2_ nextPowOf2 - length ys) 0

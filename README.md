@@ -44,7 +44,8 @@ import ZK.Algebra.Pure.Instances.BN254 (Fr)
 
 An example of a circuit is illustrated below, consisting of four inputs (small
 circles), three multiplication gates (double circles), an addition gate and a
-constant (10) gate.
+constant (10) gate. Two of the intermediate wires are labelled for reference
+later on.
 
 ```mermaid
 flowchart TD
@@ -53,9 +54,9 @@ flowchart TD
     D@{ shape: sm-circ } --> E@{ shape: dbl-circ, label: "×" }
     F@{ shape: sm-circ } --> E
     G@{ shape: circle, label: "10" } --> H@{ shape: circle, label: "+" }
-    B --> H
+    B -- 0 --> H
     H --> I@{ shape: dbl-circ, label: "×" }
-    E --> I
+    E -- 1 --> I
     I --> J@{ shape: f-circ }
 ```
 
@@ -83,7 +84,7 @@ trace = assignment circ ins
 Evaluating `trace` gives the following assignments (output abbreviated a little
 for clarity)
 
-```shell
+```haskell
 ghci> trace
 Family {ins = ..., mids = [(0,6),(1,20)], outs = [(0,320)]}
 ```
