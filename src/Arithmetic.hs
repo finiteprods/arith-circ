@@ -1,9 +1,8 @@
-{-# LANGUAGE LambdaCase, StrictData #-}
+{-# LANGUAGE StrictData #-}
 
 module Arithmetic where
 
 import Data.Bits (testBit)
-import Data.Foldable (foldl')
 import Affine (AffineCirc(..), collectInputsAffine, evalAffineCirc)
 import ZK.Algebra.Pure.Field.Class (PrimeField (asInteger))
 import GHC.Stack (HasCallStack)
@@ -138,17 +137,17 @@ genValuesCirc :: Applicative m => m f -> ArithCirc f -> m [[f]]
 genValuesCirc gen = traverse (genValuesGate gen) . unArithCirc
 
 -- | update environment by evaluating a circuit
-evalArithCirc :: forall f vars. PrimeField f -- TODO check why forall
+evalArithCirc :: PrimeField f
   -- | wire lookup logic
-  => (Wire -> vars -> Maybe f)
+  => (Wire -> e -> Maybe f)
   -- | wire update logic
-  -> (Wire -> f -> vars -> vars)
+  -> (Wire -> f -> e -> e)
   -- | circuit to evaluate
   -> ArithCirc f
   -- | environment containing inputs only
-  -> vars
+  -> e
   -- | environment containing inputs, intermediates, outputs
-  -> vars
+  -> e
 evalArithCirc lkp upd (ArithCirc gs) env =
   foldl' (evalGate lkp upd) env gs
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, StrictData, DerivingVia #-}
+{-# LANGUAGE StrictData, DerivingVia #-}
 
 --  | Definition of arithmetic circuits that only contain addition, scalar
 --  multiplication and constant gates along with its direct evaluation and

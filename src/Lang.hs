@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 module Lang where
 
 import Expr

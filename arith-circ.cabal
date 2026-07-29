@@ -74,12 +74,11 @@ library
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.18.3.0
+        base ^>=4.20.1.0
       , zikkurat-algebra
       , zikkurat-algebra-pure
       , containers
       , mtl
-      , poly
       , optics-core
       , generic-functor
       , array
@@ -88,7 +87,7 @@ library
     hs-source-dirs:   src
 
     -- Base language which the package is written in.
-    default-language: GHC2021
+    default-language: GHC2024
 
 executable arith-circ
     -- Import common warning flags.
@@ -105,7 +104,7 @@ executable arith-circ
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.18.3.0
+        base ^>=4.20.1.0
       , arith-circ
       , containers
       , zikkurat-algebra-pure
@@ -114,14 +113,14 @@ executable arith-circ
     hs-source-dirs:   app
 
     -- Base language which the package is written in.
-    default-language: GHC2021
+    default-language: GHC2024
 
 test-suite arith-circ-test
     -- Import common warning flags.
     import:           warnings
 
     -- Base language which the package is written in.
-    default-language: GHC2021
+    default-language: GHC2024
 
     -- Modules included in this executable, other than Main.
     -- other-modules:
@@ -140,5 +139,5 @@ test-suite arith-circ-test
 
     -- Test dependencies.
     build-depends:
-        base ^>=4.18.3.0,
+        base ^>=4.20.1.0,
         arith-circ

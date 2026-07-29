@@ -1,7 +1,6 @@
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE RecordWildCards, DuplicateRecordFields, NoFieldSelectors #-}
 {-# LANGUAGE OverloadedRecordDot, OverloadedLabels #-}
-{-# LANGUAGE LambdaCase #-}
 module Qap where
 
 import Data.IntMap.Strict (IntMap)
@@ -34,7 +33,7 @@ data Family a = Family
 
 -- | quadratic arithmetic program over field `f`
 -- consisting of 3 families (*L*, *R*, *O*) of polynomials
--- and a domain subgroup determining a vanishing polynomial *V*
+-- and a multiplicative subgroup of `f` determining a vanishing polynomial *V*
 data Qap f = Qap
   { insL   :: Family (Poly f)
   , insR   :: Family (Poly f)
@@ -77,7 +76,7 @@ foldFamily = foldr1
 -- | `mergeFamilies f x0 y0 xs ys` merges `xs` and `ys` with a given function `f` on values
 -- s.t. `(k, x)` merged with `(k, y)` is `(k, f x y)`
 -- but if `k` isn't a key in `ys` then it's `(k, f x y0)`
--- otoh if `k` isn't a key in `xs` then it's `(k, f x0 y)`
+-- and if `k` isn't a key in `xs` then it's `(k, f x0 y)`
 mergeFamilies
   :: (a -> b -> c) -- ^ function on values
   -> a -- ^ default value to use in function when key in 2nd family is missing in 1st
@@ -90,12 +89,11 @@ mergeFamilies f x0 y0 xs ys = Family
   , ins  = mergeMaps xs.ins  ys.ins
   , mids = mergeMaps xs.mids ys.mids
   , outs = mergeMaps xs.outs ys.outs
-  }
-  where
+  } where
     mergeMaps = MM.merge onMissingKey2 onMissingKey1 onMatchKey
-    onMissingKey2 = MM.mapMissing $ \_ x -> f x y0
-    onMissingKey1 = MM.mapMissing $ \_ y -> f x0 y
-    onMatchKey    = MM.zipWithMatched $ \_ x y -> f x y
+    onMissingKey2 = MM.mapMissing     $ \_ x   -> f x  y0
+    onMissingKey1 = MM.mapMissing     $ \_   y -> f x0 y
+    onMatchKey    = MM.zipWithMatched $ \_ x y -> f x  y
 
 -- | @mergeFamilies' f y0 xs ys@ merges `xs` and `ys` with a given function `f` on values
 -- s.t. `(k, x)` merged with `(k, y)` is `(k, f x y)`

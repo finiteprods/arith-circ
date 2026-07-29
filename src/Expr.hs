@@ -1,5 +1,3 @@
-{-# LANGUAGE GADTs, LambdaCase #-}
-
 module Expr where
 
 import ZK.Algebra.API (PrimeField)

@@ -121,6 +121,7 @@ witnessPoly =
 - [x] witness generation
 - [x] arithmetic circuit to QAP conversion
 - [ ] expression DSL to circuit compiler
+- [ ] support equality and split gates
 - [ ] Groth16 backend
 
 ## Links
