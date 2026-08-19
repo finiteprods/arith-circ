@@ -1,4 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
+import Test.Tasty
+import Test.Tasty.Falsify
+import Test.Falsify
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented."
+main = defaultMain $ testGroup "MyTestSuite"
+  [ testProperty "myFirstProperty" prop_myFirstProperty
+  ]
+
+prop_myFirstProperty :: Property ()
+prop_myFirstProperty = return ()

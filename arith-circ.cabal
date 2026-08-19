@@ -139,5 +139,8 @@ test-suite arith-circ-test
 
     -- Test dependencies.
     build-depends:
-        base ^>=4.20.1.0,
-        arith-circ
+        base ^>=4.20.1.0
+      , arith-circ
+      , tasty
+      , tasty-falsify
+      , falsify

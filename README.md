@@ -32,7 +32,7 @@ import Qap (Qap, arithCirc2Qap, Family, assignment, witness)
 ```
 
 For this simple example, we'll use the above **Arith-Circ** types and functions.
-We'll also use an `IntMap` for specifying inputs to our circuit, which are
+We'll also use a `Map` for specifying inputs to our circuit, which are
 values in the scalar field `Fr` of the [BN254 elliptic
 curve](https://hackmd.io/@jpw/bn254). We'll use a library implementation of this
 field from [zikkurat-algebra](https://github.com/faulhornlabs/zikkurat-algebra).
@@ -123,9 +123,11 @@ witnessPoly =
 - [ ] expression DSL to circuit compiler
 - [ ] support equality and split gates
 - [ ] Groth16 backend
+- [ ] experiment with *Evaluating to Symmetric Monoidal Categories*
 
 ## Links
 
+* *On the Size of Pairing-based Non-interactive Arguments* (aka [Groth16](https://eprint.iacr.org/2016/260)).
 * Adjoint's [arithmetic circuits](https://github.com/sdiehl/arithmetic-circuits).
 * [zikkurat-algebra](https://github.com/faulhornlabs/zikkurat-algebra) provides
-  algebra primitives for zero-knowledge proofs.
+  algebraic primitives for zero-knowledge proofs.
