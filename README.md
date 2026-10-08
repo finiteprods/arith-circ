@@ -48,6 +48,7 @@ constant (10) gate. Two of the intermediate wires are labelled for reference
 later on.
 
 ```mermaid
+%%{init: {'flowchart': {'minNodeWidth': 0, 'htmlLabels': true}}}%%
 flowchart TD
     A@{ shape: sm-circ } --> B@{ shape: dbl-circ, label: "×" }
     C@{ shape: sm-circ } --> B
